@@ -14,6 +14,7 @@ case class Item(uuid: UUID, name: String, version: String, data: Clob, dateTimeC
 
 case class CollectionItemAssn(collectionUUID: UUID, itemUUID: UUID, quantity: Option[Int])
 
+case class CollectionParentCollectionAssn(collectionUUID: UUID, parentCollectionUUID: UUID)
 
 trait Tables {
   this: DriverComponent =>
@@ -33,6 +34,10 @@ trait Tables {
     def dateTimeModified = column[Timestamp]("datetime_modified")
     def deleted = column[Boolean]("deleted")
     def active = column[Boolean]("active")
+
+    def categoryIndex = index("idx_category", category)
+    def deletedIndex = index("idx_deleted", deleted)
+    def activeIndex = index("idx_active", active)
 
     def * : ProvenShape[(UUID, String, String, Clob, Timestamp, Timestamp, Boolean, Boolean)] =
       (uuid, name, category, description, dateTimeCreated, dateTimeModified, deleted, active)
@@ -54,22 +59,48 @@ trait Tables {
     def deleted = column[Boolean]("deleted")
     def active = column[Boolean]("active")
 
+    def nameIndex = index("idx_name", name)
+    def versionIndex = index("idx_version", version)
+    def deletedIndex = index("idx_deleted", deleted)
+    def activeIndex = index("idx_active", active)
+
     def * : ProvenShape[(UUID, String, String, Clob, Timestamp, Timestamp, Boolean, Boolean)] =
       (uuid, name, version, data, dateTimeCreated, dateTimeModified, deleted, active)
   }
   val items = TableQuery[Items]
 
+  /**
+    *
+    * @param tag
+    */
   class CollectionItemAssns(tag: Tag) extends Table[CollectionItemAssn](tag, "collection_item_assn") {
     def collectionUUID = column[UUID]("collection")
     def itemUUID = column[UUID]("item")
     def quantity = column[Option[Int]]("quantity")
 
     def pk = primaryKey("pk_collection_item_associations", (collectionUUID, itemUUID))
-    def collection = foreignKey("collection_fk", collectionUUID, collections)(_.uuid)
-    def item = foreignKey("item_fk", itemUUID, items)(_.uuid)
+    def collection = foreignKey("fk_collection", collectionUUID, collections)(_.uuid)
+    def item = foreignKey("fk_item", itemUUID, items)(_.uuid)
 
     def * : ProvenShape[(UUID, UUID, Option[Int])] = (collectionUUID, itemUUID, quantity)
   }
   val collectionItems = TableQuery[CollectionItemAssns]
+
+  /**
+    *
+    * @param tag
+    */
+  class CollectionParentCollectionAssns(tag: Tag) extends Table[CollectionParentCollectionAssn](tag, "collection_collection_assn") {
+    def collectionUUID = column[UUID]("collection")
+    def parentCollectionUUID = column[UUID]("parent_collection")
+
+    def pk = primaryKey("pk_collection_parent_collection_associations", (collectionUUID, parentCollectionUUID))
+    def collection = foreignKey("fk_collection", collectionUUID, collections)(_.uuid)
+    def parentCollection = foreignKey("fk_parent_collection", parentCollectionUUID, collections)(_.uuid)
+
+    def * : ProvenShape[(UUID, UUID)] = (collectionUUID, parentCollectionUUID)
+
+  }
+  val collectionParentCollections = TableQuery[CollectionParentCollectionAssns]
 
 }
