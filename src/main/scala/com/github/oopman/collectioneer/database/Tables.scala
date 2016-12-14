@@ -3,8 +3,9 @@ package com.github.oopman.collectioneer.database
 import java.sql.{Clob, Timestamp}
 import java.util.UUID
 
-import slick.lifted.ProvenShape
 import slick.lifted.{Tag => SlickTag}
+
+case class Category(id: Int, left: Int, right: Int, name: String)
 
 case class Collection(uuid: UUID, name: String, category: Option[Int], description: Option[Clob],
                       dateTimeCreated: Timestamp, dateTimeModified: Timestamp,
@@ -14,13 +15,15 @@ case class Item(uuid: UUID, name: String, category: Option[Int], version: Option
                 dateTimeCreated: Timestamp, dateTimeModified: Timestamp,
                 deleted: Boolean, active: Boolean)
 
-case class Category(id: Int, left: Int, right: Int, name: String)
-
 case class CollectionItemAssn(collectionUUID: UUID, itemUUID: UUID, quantity: Option[Int])
 
 case class CollectionParentCollectionAssn(collectionUUID: UUID, parentCollectionUUID: UUID)
 
-case class Tag(name: String, category: Option[String], data: Option[Clob])
+case class Tag(name: String, description: Option[Int], data: Option[Clob])
+
+case class TagCollectionAssn(tagName: String, collectionUUID: UUID)
+
+case class TagItemAssn(tagName: String, itemUUID: UUID)
 
 trait Tables {
   this: DriverComponent =>
@@ -37,7 +40,7 @@ trait Tables {
     def right = column[Int]("right")
     def name = column[String]("name")
 
-    def * : ProvenShape[(Int, Int, Int, String)] = (id, left, right, name)
+    def * = (id, left, right, name) <> (Category.tupled, Category.unapply)
   }
   val categories = TableQuery[Categories]
 
@@ -59,8 +62,7 @@ trait Tables {
     def activeIdx = index("idx_collections_active", active)
     def categoryFk = foreignKey("fk_collections_category", category, categories)(_.id)
 
-    def * : ProvenShape[(UUID, String, Option[Int], Option[Clob], Timestamp, Timestamp, Boolean, Boolean)] =
-      (uuid, name, category, description, dateTimeCreated, dateTimeModified, deleted, active)
+    def * = (uuid, name, category, description, dateTimeCreated, dateTimeModified, deleted, active) <> (Collection.tupled, Collection.unapply)
   }
   val collections = TableQuery[Collections]
 
@@ -86,8 +88,7 @@ trait Tables {
     def activeIdx = index("idx_items_active", active)
     def categoryFk = foreignKey("fk_collections_category", category, categories)(_.id)
 
-    def * : ProvenShape[(UUID, String, Option[Int], Option[String], Option[Clob], Timestamp, Timestamp, Boolean, Boolean)] =
-      (uuid, name, category, version, data, dateTimeCreated, dateTimeModified, deleted, active)
+    def * = (uuid, name, category, version, data, dateTimeCreated, dateTimeModified, deleted, active) <> (Item.tupled, Item.unapply)
   }
   val items = TableQuery[Items]
 
@@ -104,7 +105,7 @@ trait Tables {
     def collectionFk = foreignKey("fk_collection_item_assns_collection", collectionUUID, collections)(_.uuid)
     def itemFk = foreignKey("fk_collection_item_assns_item", itemUUID, items)(_.uuid)
 
-    def * : ProvenShape[(UUID, UUID, Option[Int])] = (collectionUUID, itemUUID, quantity)
+    def * = (collectionUUID, itemUUID, quantity) <> (CollectionItemAssn.tupled, CollectionItemAssn.unapply)
   }
   val collectionItems = TableQuery[CollectionItemAssns]
 
@@ -120,19 +121,20 @@ trait Tables {
     def collectionFk = foreignKey("fk_collection_parent_collection_assns_collection", collectionUUID, collections)(_.uuid)
     def parentCollectionFk = foreignKey("fk_collection_parent_collection_assns_parent_collection", parentCollectionUUID, collections)(_.uuid)
 
-    def * : ProvenShape[(UUID, UUID)] = (collectionUUID, parentCollectionUUID)
+    def * = (collectionUUID, parentCollectionUUID) <> (CollectionParentCollectionAssn.tupled, CollectionParentCollectionAssn.unapply)
 
   }
   val collectionParentCollections = TableQuery[CollectionParentCollectionAssns]
 
-  class Tags(tag: SlickTag) extends Table[Tag](tag, "tags") {
+  import com.github.oopman.collectioneer.database.{Tag => CollectioneerTag}
+  class Tags(tag: SlickTag) extends Table[CollectioneerTag](tag, "tags") {
     def name = column[String]("name", O.PrimaryKey)
-    def category = column[Option[String]]("category")
+    def category = column[Option[Int]]("category")
     def data = column[Option[Clob]]("data")
 
-    def categoryIdx = index("idx_tags_category", category)
+    def categoryFk = foreignKey("fk_tags_category", category, categories)(_.id)
 
-    def * : ProvenShape[(String, Option[String], Option[Clob])] = (name, category, data)
+    def * = (name, category, data) <> (CollectioneerTag.tupled, CollectioneerTag.unapply)
   }
   val tags = TableQuery[Tags]
 
@@ -141,14 +143,14 @@ trait Tables {
     * @param tag
     */
   class TagCollectionAssns(tag: SlickTag) extends Table[TagCollectionAssn](tag, "tag_collection_assns") {
-    def tagUUID = column[String]("tag_name")
+    def tagName = column[String]("tag_name")
     def collectionUUID = column[UUID]("collection_uuid")
 
-    def pk = primaryKey("pk_tag_collection_assns", (tagUUID, collectionUUID))
-    def tagFk = foreignKey("fk_tag_collection_assns_item", tagUUID, tags)(_.name)
+    def pk = primaryKey("pk_tag_collection_assns", (tagName, collectionUUID))
+    def tagFk = foreignKey("fk_tag_collection_assns_item", tagName, tags)(_.name)
     def collectionFk = foreignKey("fk_tag_collection_assns_collection", collectionUUID, collections)(_.uuid)
 
-    def * : ProvenShape[(String, UUID)] = (tagUUID, collectionUUID)
+    def * = (tagName, collectionUUID) <> (TagCollectionAssn.tupled, TagCollectionAssn.unapply)
   }
   val tagCollections = TableQuery[TagCollectionAssns]
 
@@ -156,15 +158,15 @@ trait Tables {
     *
     * @param tag
     */
-  class TagItemAssns(tag: SlickTag) extends Table[TagCollectionAssn](tag, "tag_item_assns") {
-    def tagUUID = column[String]("tag_name")
+  class TagItemAssns(tag: SlickTag) extends Table[TagItemAssn](tag, "tag_item_assns") {
+    def tagName = column[String]("tag_name")
     def itemUUID = column[UUID]("item_uuid")
 
-    def pk = primaryKey("pk_tag_item_assns", (tagUUID, itemUUID))
-    def tagFk = foreignKey("fk_tag_item_assns_item", tagUUID, tags)(_.name)
+    def pk = primaryKey("pk_tag_item_assns", (tagName, itemUUID))
+    def tagFk = foreignKey("fk_tag_item_assns_item", tagName, tags)(_.name)
     def itemFk = foreignKey("fk_tag_item_assns_item", itemUUID, items)(_.uuid)
 
-    def * : ProvenShape[(String, UUID)] = (tagUUID, itemUUID)
+    def * = (tagName, itemUUID) <> (TagItemAssn.tupled, TagItemAssn.unapply)
   }
   val tagItems = TableQuery[TagItemAssns]
 }
