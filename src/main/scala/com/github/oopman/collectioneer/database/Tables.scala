@@ -6,13 +6,15 @@ import java.util.UUID
 import slick.lifted.ProvenShape
 import slick.lifted.{Tag => SlickTag}
 
-case class Collection(uuid: UUID, name: String, category: Option[String], description: Option[Clob],
+case class Collection(uuid: UUID, name: String, category: Option[Int], description: Option[Clob],
                       dateTimeCreated: Timestamp, dateTimeModified: Timestamp,
                       deleted: Boolean, active: Boolean)
 
-case class Item(uuid: UUID, name: String, version: Option[String], data: Option[Clob],
+case class Item(uuid: UUID, name: String, category: Option[Int], version: Option[String], data: Option[Clob],
                 dateTimeCreated: Timestamp, dateTimeModified: Timestamp,
                 deleted: Boolean, active: Boolean)
+
+case class Category(id: Int, left: Int, right: Int, name: String)
 
 case class CollectionItemAssn(collectionUUID: UUID, itemUUID: UUID, quantity: Option[Int])
 
@@ -29,21 +31,35 @@ trait Tables {
     *
     * @param tag
     */
+  class Categories(tag: SlickTag) extends Table[Category](tag, "categories") {
+    def id = column[Int]("id", O.PrimaryKey, O.AutoInc)
+    def left = column[Int]("left")
+    def right = column[Int]("right")
+    def name = column[String]("name")
+
+    def * : ProvenShape[(Int, Int, Int, String)] = (id, left, right, name)
+  }
+  val categories = TableQuery[Categories]
+
+  /**
+    *
+    * @param tag
+    */
   class Collections(tag: SlickTag) extends Table[Collection](tag, "collections") {
     def uuid = column[UUID]("uuid", O.PrimaryKey)
     def name = column[String]("name", O.Unique)
-    def category = column[Option[String]]("category")
+    def category = column[Option[Int]]("category")
     def description = column[Option[Clob]]("description")
     def dateTimeCreated = column[Timestamp]("datetime_created")
     def dateTimeModified = column[Timestamp]("datetime_modified")
     def deleted = column[Boolean]("deleted")
     def active = column[Boolean]("active")
 
-    def categoryIdx = index("idx_collections_category", category)
     def deletedIdx = index("idx_collections_deleted", deleted)
     def activeIdx = index("idx_collections_active", active)
+    def categoryFk = foreignKey("fk_collections_category", category, categories)(_.id)
 
-    def * : ProvenShape[(UUID, String, Option[String], Option[Clob], Timestamp, Timestamp, Boolean, Boolean)] =
+    def * : ProvenShape[(UUID, String, Option[Int], Option[Clob], Timestamp, Timestamp, Boolean, Boolean)] =
       (uuid, name, category, description, dateTimeCreated, dateTimeModified, deleted, active)
   }
   val collections = TableQuery[Collections]
@@ -56,6 +72,7 @@ trait Tables {
   class Items(tag: SlickTag) extends Table[Item](tag, "items") {
     def uuid = column[UUID]("uuid", O.PrimaryKey)
     def name = column[String]("name")
+    def category = column[Option[Int]]("category")
     def version = column[Option[String]]("version")
     def data = column[Option[Clob]]("data")
     def dateTimeCreated = column[Timestamp]("datetime_created")
@@ -67,9 +84,10 @@ trait Tables {
     def versionIdx = index("idx_items_version", version)
     def deletedIdx = index("idx_items_deleted", deleted)
     def activeIdx = index("idx_items_active", active)
+    def categoryFk = foreignKey("fk_collections_category", category, categories)(_.id)
 
-    def * : ProvenShape[(UUID, String, Option[String], Option[Clob], Timestamp, Timestamp, Boolean, Boolean)] =
-      (uuid, name, version, data, dateTimeCreated, dateTimeModified, deleted, active)
+    def * : ProvenShape[(UUID, String, Option[Int], Option[String], Option[Clob], Timestamp, Timestamp, Boolean, Boolean)] =
+      (uuid, name, category, version, data, dateTimeCreated, dateTimeModified, deleted, active)
   }
   val items = TableQuery[Items]
 
