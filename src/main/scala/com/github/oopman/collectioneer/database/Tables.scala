@@ -1,29 +1,28 @@
 package com.github.oopman.collectioneer.database
 
 import java.sql.{Clob, Timestamp}
-import java.util.UUID
 
 import slick.lifted.{Tag => SlickTag}
 
-case class Category(id: Int, left: Int, right: Int, name: String)
+case class Category(id: Int, left: Option[Int], right: Option[Int], name: String)
 
-case class Collection(uuid: UUID, name: String, category: Option[Int], description: Option[Clob],
+case class Collection(id: Int, name: String, category: Option[Int], description: Option[Clob],
                       dateTimeCreated: Timestamp, dateTimeModified: Timestamp,
                       deleted: Boolean, active: Boolean)
 
-case class Item(uuid: UUID, name: String, category: Option[Int], version: Option[String], data: Option[Clob],
+case class Item(id: Int, name: String, category: Option[Int], version: Option[String], data: Option[Clob],
                 dateTimeCreated: Timestamp, dateTimeModified: Timestamp,
                 deleted: Boolean, active: Boolean)
 
-case class CollectionItemAssn(collectionUUID: UUID, itemUUID: UUID, quantity: Option[Int])
+case class CollectionItemAssn(collectionId: Int, itemId: Int, quantity: Option[Int])
 
-case class CollectionParentCollectionAssn(collectionUUID: UUID, parentCollectionUUID: UUID)
+case class CollectionParentCollectionAssn(collectionId: Int, parentCollectionId: Int)
 
-case class Tag(name: String, description: Option[Int], data: Option[Clob])
+case class Tag(name: String, category: Option[Int], data: Option[Clob])
 
-case class TagCollectionAssn(tagName: String, collectionUUID: UUID)
+case class TagCollectionAssn(tagName: String, collectionId: Int)
 
-case class TagItemAssn(tagName: String, itemUUID: UUID)
+case class TagItemAssn(tagName: String, itemId: Int)
 
 trait Tables {
   this: DriverComponent =>
@@ -36,8 +35,8 @@ trait Tables {
     */
   class Categories(tag: SlickTag) extends Table[Category](tag, "categories") {
     def id = column[Int]("id", O.PrimaryKey, O.AutoInc)
-    def left = column[Int]("left")
-    def right = column[Int]("right")
+    def left = column[Option[Int]]("left")
+    def right = column[Option[Int]]("right")
     def name = column[String]("name")
 
     def * = (id, left, right, name) <> (Category.tupled, Category.unapply)
@@ -49,7 +48,7 @@ trait Tables {
     * @param tag
     */
   class Collections(tag: SlickTag) extends Table[Collection](tag, "collections") {
-    def uuid = column[UUID]("uuid", O.PrimaryKey)
+    def id = column[Int]("id", O.PrimaryKey)
     def name = column[String]("name", O.Unique)
     def category = column[Option[Int]]("category")
     def description = column[Option[Clob]]("description")
@@ -62,7 +61,7 @@ trait Tables {
     def activeIdx = index("idx_collections_active", active)
     def categoryFk = foreignKey("fk_collections_category", category, categories)(_.id)
 
-    def * = (uuid, name, category, description, dateTimeCreated, dateTimeModified, deleted, active) <> (Collection.tupled, Collection.unapply)
+    def * = (id, name, category, description, dateTimeCreated, dateTimeModified, deleted, active) <> (Collection.tupled, Collection.unapply)
   }
   val collections = TableQuery[Collections]
 
@@ -72,7 +71,7 @@ trait Tables {
     * @param tag
     */
   class Items(tag: SlickTag) extends Table[Item](tag, "items") {
-    def uuid = column[UUID]("uuid", O.PrimaryKey)
+    def id = column[Int]("id", O.PrimaryKey)
     def name = column[String]("name")
     def category = column[Option[Int]]("category")
     def version = column[Option[String]]("version")
@@ -88,7 +87,7 @@ trait Tables {
     def activeIdx = index("idx_items_active", active)
     def categoryFk = foreignKey("fk_collections_category", category, categories)(_.id)
 
-    def * = (uuid, name, category, version, data, dateTimeCreated, dateTimeModified, deleted, active) <> (Item.tupled, Item.unapply)
+    def * = (id, name, category, version, data, dateTimeCreated, dateTimeModified, deleted, active) <> (Item.tupled, Item.unapply)
   }
   val items = TableQuery[Items]
 
@@ -97,15 +96,15 @@ trait Tables {
     * @param tag
     */
   class CollectionItemAssns(tag: SlickTag) extends Table[CollectionItemAssn](tag, "collection_item_assns") {
-    def collectionUUID = column[UUID]("collection_uuid")
-    def itemUUID = column[UUID]("item_uuid")
+    def collectionId = column[Int]("collection_id")
+    def itemId = column[Int]("item_id")
     def quantity = column[Option[Int]]("quantity")
 
-    def pk = primaryKey("pk_collection_item_assns", (collectionUUID, itemUUID))
-    def collectionFk = foreignKey("fk_collection_item_assns_collection", collectionUUID, collections)(_.uuid)
-    def itemFk = foreignKey("fk_collection_item_assns_item", itemUUID, items)(_.uuid)
+    def pk = primaryKey("pk_collection_item_assns", (collectionId, itemId))
+    def collectionFk = foreignKey("fk_collection_item_assns_collection", collectionId, collections)(_.id)
+    def itemFk = foreignKey("fk_collection_item_assns_item", itemId, items)(_.id)
 
-    def * = (collectionUUID, itemUUID, quantity) <> (CollectionItemAssn.tupled, CollectionItemAssn.unapply)
+    def * = (collectionId, itemId, quantity) <> (CollectionItemAssn.tupled, CollectionItemAssn.unapply)
   }
   val collectionItems = TableQuery[CollectionItemAssns]
 
@@ -114,14 +113,14 @@ trait Tables {
     * @param tag
     */
   class CollectionParentCollectionAssns(tag: SlickTag) extends Table[CollectionParentCollectionAssn](tag, "collection_collection_assns") {
-    def collectionUUID = column[UUID]("collection_uuid")
-    def parentCollectionUUID = column[UUID]("parent_collection_uuid")
+    def collectionId = column[Int]("collection_id")
+    def parentCollectionId = column[Int]("parent_collection_id")
 
-    def pk = primaryKey("pk_collection_parent_collection_assns", (collectionUUID, parentCollectionUUID))
-    def collectionFk = foreignKey("fk_collection_parent_collection_assns_collection", collectionUUID, collections)(_.uuid)
-    def parentCollectionFk = foreignKey("fk_collection_parent_collection_assns_parent_collection", parentCollectionUUID, collections)(_.uuid)
+    def pk = primaryKey("pk_collection_parent_collection_assns", (collectionId, parentCollectionId))
+    def collectionFk = foreignKey("fk_collection_parent_collection_assns_collection", collectionId, collections)(_.id)
+    def parentCollectionFk = foreignKey("fk_collection_parent_collection_assns_parent_collection", parentCollectionId, collections)(_.id)
 
-    def * = (collectionUUID, parentCollectionUUID) <> (CollectionParentCollectionAssn.tupled, CollectionParentCollectionAssn.unapply)
+    def * = (collectionId, parentCollectionId) <> (CollectionParentCollectionAssn.tupled, CollectionParentCollectionAssn.unapply)
 
   }
   val collectionParentCollections = TableQuery[CollectionParentCollectionAssns]
@@ -144,13 +143,13 @@ trait Tables {
     */
   class TagCollectionAssns(tag: SlickTag) extends Table[TagCollectionAssn](tag, "tag_collection_assns") {
     def tagName = column[String]("tag_name")
-    def collectionUUID = column[UUID]("collection_uuid")
+    def collectionId = column[Int]("collection_id")
 
-    def pk = primaryKey("pk_tag_collection_assns", (tagName, collectionUUID))
+    def pk = primaryKey("pk_tag_collection_assns", (tagName, collectionId))
     def tagFk = foreignKey("fk_tag_collection_assns_item", tagName, tags)(_.name)
-    def collectionFk = foreignKey("fk_tag_collection_assns_collection", collectionUUID, collections)(_.uuid)
+    def collectionFk = foreignKey("fk_tag_collection_assns_collection", collectionId, collections)(_.id)
 
-    def * = (tagName, collectionUUID) <> (TagCollectionAssn.tupled, TagCollectionAssn.unapply)
+    def * = (tagName, collectionId) <> (TagCollectionAssn.tupled, TagCollectionAssn.unapply)
   }
   val tagCollections = TableQuery[TagCollectionAssns]
 
@@ -160,13 +159,13 @@ trait Tables {
     */
   class TagItemAssns(tag: SlickTag) extends Table[TagItemAssn](tag, "tag_item_assns") {
     def tagName = column[String]("tag_name")
-    def itemUUID = column[UUID]("item_uuid")
+    def itemId = column[Int]("item_id")
 
-    def pk = primaryKey("pk_tag_item_assns", (tagName, itemUUID))
+    def pk = primaryKey("pk_tag_item_assns", (tagName, itemId))
     def tagFk = foreignKey("fk_tag_item_assns_item", tagName, tags)(_.name)
-    def itemFk = foreignKey("fk_tag_item_assns_item", itemUUID, items)(_.uuid)
+    def itemFk = foreignKey("fk_tag_item_assns_item", itemId, items)(_.id)
 
-    def * = (tagName, itemUUID) <> (TagItemAssn.tupled, TagItemAssn.unapply)
+    def * = (tagName, itemId) <> (TagItemAssn.tupled, TagItemAssn.unapply)
   }
   val tagItems = TableQuery[TagItemAssns]
 }
