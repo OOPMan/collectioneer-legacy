@@ -35,8 +35,8 @@ trait Tables {
     */
   class Categories(tag: SlickTag) extends Table[Category](tag, "categories") {
     def id = column[Int]("id", O.PrimaryKey, O.AutoInc)
-    def left = column[Option[Int]]("left")
-    def right = column[Option[Int]]("right")
+    def left = column[Option[Int]]("left", O.Default(None))
+    def right = column[Option[Int]]("right", O.Default(None))
     def name = column[String]("name")
 
     def * = (id, left, right, name) <> (Category.tupled, Category.unapply)
@@ -48,14 +48,14 @@ trait Tables {
     * @param tag
     */
   class Collections(tag: SlickTag) extends Table[Collection](tag, "collections") {
-    def id = column[Int]("id", O.PrimaryKey)
+    def id = column[Int]("id", O.PrimaryKey, O.AutoInc)
     def name = column[String]("name", O.Unique)
-    def category = column[Option[Int]]("category")
-    def description = column[Option[Clob]]("description")
+    def category = column[Option[Int]]("category", O.Default(None))
+    def description = column[Option[Clob]]("description", O.Default(None))
     def dateTimeCreated = column[Timestamp]("datetime_created")
     def dateTimeModified = column[Timestamp]("datetime_modified")
-    def deleted = column[Boolean]("deleted")
-    def active = column[Boolean]("active")
+    def deleted = column[Boolean]("deleted", O.Default(false))
+    def active = column[Boolean]("active", O.Default(false))
 
     def deletedIdx = index("idx_collections_deleted", deleted)
     def activeIdx = index("idx_collections_active", active)
@@ -71,21 +71,22 @@ trait Tables {
     * @param tag
     */
   class Items(tag: SlickTag) extends Table[Item](tag, "items") {
-    def id = column[Int]("id", O.PrimaryKey)
+    def id = column[Int]("id", O.PrimaryKey, O.AutoInc)
     def name = column[String]("name")
-    def category = column[Option[Int]]("category")
-    def version = column[Option[String]]("version")
-    def data = column[Option[Clob]]("data")
+    def category = column[Option[Int]]("category", O.Default(None))
+    def version = column[Option[String]]("version", O.Default(None))
+    def data = column[Option[Clob]]("data", O.Default(None))
     def dateTimeCreated = column[Timestamp]("datetime_created")
     def dateTimeModified = column[Timestamp]("datetime_modified")
-    def deleted = column[Boolean]("deleted")
-    def active = column[Boolean]("active")
+    def deleted = column[Boolean]("deleted", O.Default(false))
+    def active = column[Boolean]("active", O.Default(true))
 
     def nameIdx = index("idx_items_name", name)
     def versionIdx = index("idx_items_version", version)
     def deletedIdx = index("idx_items_deleted", deleted)
     def activeIdx = index("idx_items_active", active)
     def categoryFk = foreignKey("fk_collections_category", category, categories)(_.id)
+    def nameVersionIdx = index("idx_items_name_version", (name, version), unique = true)
 
     def * = (id, name, category, version, data, dateTimeCreated, dateTimeModified, deleted, active) <> (Item.tupled, Item.unapply)
   }
@@ -98,7 +99,7 @@ trait Tables {
   class CollectionItemAssns(tag: SlickTag) extends Table[CollectionItemAssn](tag, "collection_item_assns") {
     def collectionId = column[Int]("collection_id")
     def itemId = column[Int]("item_id")
-    def quantity = column[Option[Int]]("quantity")
+    def quantity = column[Option[Int]]("quantity", O.Default(None))
 
     def pk = primaryKey("pk_collection_item_assns", (collectionId, itemId))
     def collectionFk = foreignKey("fk_collection_item_assns_collection", collectionId, collections)(_.id)
@@ -128,8 +129,8 @@ trait Tables {
   import com.github.oopman.collectioneer.database.{Tag => CollectioneerTag}
   class Tags(tag: SlickTag) extends Table[CollectioneerTag](tag, "tags") {
     def name = column[String]("name", O.PrimaryKey)
-    def category = column[Option[Int]]("category")
-    def data = column[Option[Clob]]("data")
+    def category = column[Option[Int]]("category", O.Default(None))
+    def data = column[Option[Clob]]("data", O.Default(None))
 
     def categoryFk = foreignKey("fk_tags_category", category, categories)(_.id)
 
