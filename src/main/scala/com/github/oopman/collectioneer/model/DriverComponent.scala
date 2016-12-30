@@ -1,4 +1,4 @@
-package com.github.oopman.collectioneer.database
+package com.github.oopman.collectioneer.model
 
 import slick.jdbc.JdbcProfile
 

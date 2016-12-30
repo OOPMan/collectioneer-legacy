@@ -1,4 +1,4 @@
-package com.github.oopman.collectioneer.database
+package com.github.oopman.collectioneer.model
 
 import java.sql.{Clob, Timestamp}
 
@@ -126,7 +126,7 @@ trait Tables {
   }
   val collectionParentCollections = TableQuery[CollectionParentCollectionAssns]
 
-  import com.github.oopman.collectioneer.database.{Tag => CollectioneerTag}
+  import com.github.oopman.collectioneer.model.{Tag => CollectioneerTag}
   class Tags(tag: SlickTag) extends Table[CollectioneerTag](tag, "tags") {
     def name = column[String]("name", O.PrimaryKey)
     def category = column[Option[Int]]("category", O.Default(None))
