@@ -85,7 +85,7 @@ trait Tables {
     def versionIdx = index("idx_items_version", version)
     def deletedIdx = index("idx_items_deleted", deleted)
     def activeIdx = index("idx_items_active", active)
-    def categoryFk = foreignKey("fk_collections_category", category, categories)(_.id)
+    def categoryFk = foreignKey("fk_items_category", category, categories)(_.id)
     def nameVersionIdx = index("idx_items_name_version", (name, version), unique = true)
 
     def * = (id, name, category, version, data, dateTimeCreated, dateTimeModified, deleted, active) <> (Item.tupled, Item.unapply)
@@ -163,7 +163,7 @@ trait Tables {
     def itemId = column[Int]("item_id")
 
     def pk = primaryKey("pk_tag_item_assns", (tagName, itemId))
-    def tagFk = foreignKey("fk_tag_item_assns_item", tagName, tags)(_.name)
+    def tagFk = foreignKey("fk_tag_item_assns_tag", tagName, tags)(_.name)
     def itemFk = foreignKey("fk_tag_item_assns_item", itemId, items)(_.id)
 
     def * = (tagName, itemId) <> (TagItemAssn.tupled, TagItemAssn.unapply)
