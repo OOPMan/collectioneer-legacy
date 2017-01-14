@@ -16,19 +16,22 @@ import scalafx.scene.paint.{LinearGradient, Stops}
 import scalafx.scene.text.Text
 import com.github.oopman.collectioneer.model.DAL
 import com.github.oopman.collectioneer.ui.CollectionsListView
+import com.typesafe.scalalogging.Logger
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 
 object Collectioneer extends JFXApp {
+  val logger = Logger("com.github.oopman.collectioneer.Collectioneer")
   val db = Database.forConfig("data")
+  // TODO: Select profile based on config settings
   val dal = new DAL(H2Profile)
   import dal.driver.api._
-  val setupPage = db.run(for {
-    _ <- dal.create
-    _ <- dal.populateCollections
-  } yield ())
+  val setupPage = db.run(DBIO.seq(dal.create, dal.populateCollections)) recover {
+  case _ =>
+    logger.warn("Failed to create database tables, probably because they already exist.")
+  }
   Await.result(setupPage, Duration.Inf)
 
   stage = new PrimaryStage {
